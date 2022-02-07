@@ -21,7 +21,7 @@ gaincal(callist='mycallist',outname='mycal',plot=True)
 
 
 
-
+'''
 # ------------------ cal backend
 calpath   = 'HighCAL/'
 calfits1  = 'Dec+2150-M01_0001_210204_135403.fits'
@@ -43,4 +43,4 @@ spechdu2  = read_spec(specpath+specfits2)
 
 specmjd1 = spechdu1[1].data['utobs'] 
 specut1  = ATime(specmjd1, format='mjd').datetime
-
+'''

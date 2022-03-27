@@ -1,2 +1,2 @@
 # NJU_FAST_ISM
-![plot]()
+![plot](FISH pipeline.png)

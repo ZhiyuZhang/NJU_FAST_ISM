@@ -10,20 +10,15 @@
 import numpy as np
 from astropy.io import fits
 import sys
-
+import gc
 # ------------ Main Functions
 
 def read_crafts_cal(calfile):
     '''
     Read CRAFTS High CAL files
     '''
-    calfits = fits.open(calfile)
-    
-    cal_hdu0 = calfits[0].copy()
-    cal_hdu1 = calfits[1].copy()
-    cal_hdu2 = calfits[2].copy()
-    
-    calfits.close()
+    cal_hdu0,cal_hdu1,cal_hdu2 = fits.open(calfile)
+    gc.collect()
 
     return cal_hdu0,cal_hdu1,cal_hdu2
 
@@ -34,7 +29,7 @@ if __name__ == '__main__':
     
     calfile = sys.argv[1]
 
-    cal_hdu0,cal_hdu1,cal_hdu2 = read_cal(calfile)
+    cal_hdu0,cal_hdu1,cal_hdu2 = read_crafts_cal(calfile)
     
     mjd  = cal_hdu2.data['mjd']
     data = cal_hdu2.data['cal']

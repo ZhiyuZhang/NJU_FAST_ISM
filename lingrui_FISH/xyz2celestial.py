@@ -51,7 +51,7 @@ def xyz2celestial(specfits,xyztable,beam=1,plot=False):
     rot     = np.array([[np.cos(SDP_angle),-np.sin(SDP_angle)],[np.sin(SDP_angle),np.cos(SDP_angle)]])
     pos_rot = np.dot(rot,pos)
 
-    spec_hdu1.data['OBJ_RA']  = coord.icrs.ra.value + pos_rot[0]/np.cos(coord.icrs.dec.value)/60
+    spec_hdu1.data['OBJ_RA']  = coord.icrs.ra.value + pos_rot[0]/np.cos(coord.icrs.dec.value*u.deg)/60
     spec_hdu1.data['OBJ_DEC'] = coord.icrs.dec.value + pos_rot[1]/60
     
     hduout = fits.HDUList([spec_hdu0,spec_hdu1])

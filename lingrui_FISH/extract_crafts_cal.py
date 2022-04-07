@@ -71,7 +71,7 @@ def extract_crafts_cal(filename):
     hdu1.columns.del_col('DAT_SCL')
     hdu1.columns.del_col('DAT_WTS')
     hdu1.columns.del_col('DAT_FREQ')
-    #fits.BinTableHDU.update(hdu1)
+    fits.BinTableHDU.update(hdu1)
     #for name in datadict:
     #    hdu1.data[name] = datadict[name]
     

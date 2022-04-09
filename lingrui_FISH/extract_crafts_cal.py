@@ -75,7 +75,7 @@ def extract_crafts_cal(filename):
     #for name in datadict:
     #    hdu1.data[name] = datadict[name]
     
-    CAL    = fits.Column(name='CAL', format="%dE" % (Nbin*p*n), array=data, dim=str((Nbin, p, n))) # OFF, ON, OFF, ON...
+    CAL    = fits.Column(name='CAL', format="%dE" % (Nbin*p*n), array=data, dim=str((n, p, Nbin))) # OFF, ON, OFF, ON...
     TIME   = fits.Column(name='MJD', format="D", array=Tarray)
     cols   = fits.ColDefs([TIME, CAL])
     caltab = fits.BinTableHDU.from_columns(cols)

@@ -7,22 +7,25 @@ from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 from read_crafts_spec import read_crafts_spec
 from read_crafts_cal import read_crafts_cal
-from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from astropy.utils import iers
+from FISH_utils import interp
+
 #iers.conf.auto_download = False  
 iers.conf.auto_max_age = None  
-
-def interp(x,y,xnew,kind='linear',axis=0):
-    interp_func = interp1d(x=x,y=y,kind=kind,axis=axis,fill_value='extrapolate')
-    ynew = interp_func(xnew)
-    return ynew
 
 def xyz2celestial(specfits,xyztable,beam=1,plot=False,psrflag=False):
 
     if not psrflag:
+
         spec_hdu0,spec_hdu1 = read_crafts_spec(specfits)
+
         spec_mjd  = spec_hdu1.data['utobs']
+        spec_fmin = spec_hdu1.data['freq'][0]
+        spec_chw  = spec_hdu1.data['chan_bw'][0]
+        spec_nch  = spec_hdu1.data['nchan'][0]
+        spec_fmax = spec_fmin+spec_nch*spec_chw
+        spec_freq = np.arange(spec_fmin,spec_fmax,spec_chw)/1e3 # freq in topo
     else:
         spec_hdu0,spec_hdu1,spec_hdu2 = read_crafts_cal(specfits)
         spec_mjd = spec_hdu2.data['MJD']
@@ -88,27 +91,8 @@ def xyz2celestial(specfits,xyztable,beam=1,plot=False,psrflag=False):
         plt.savefig(rootname+'_scan.pdf',format='pdf',bbox_inches='tight')
         plt.close()
 
-#def xyztoradec(xyz):
-#    R=np.sqrt(xyz[0]**2+xyz[1]**2+xyz[2]**2)
-#    z=-xyz[2]
-#    y=-xyz[0]
-#    x=-xyz[1]
-#    az0 = 0.0
-#    if (np.abs(x) < 1.0e-8):                 # If X is a very small number
-#       if (y>0):
-#          az0 = 90.0                         # abs(X) <1E-8; Y >0;  AZ = 90
-#       else:
-#          az0 = 270.0                        # abs(X) <1E-8; Y <=0; AZ = 270
-#    else:
-#       tempaz0 = np.arctan(y/x)*180/np.pi      # X >=1E-8;  arctan(y/x) to degree
-#       if (x>0 and y>0):
-#          az0 = tempaz0                      # X > 0; Y > 0; AZ = tempaz0
-#       if ((x>0 and y<0) or (x>0 and y==0)):
-#           az0 = tempaz0+360.0               # X > 0; Y <= 0;   AZ = tempaz0+360
-#       if (x<0 and y>0):
-#           az0 = tempaz0+180.0               # X < 0; Y > 0;    AZ = tempaz0+180
-#       if ((x<0 and y<0) or (x<0 and y==0)):
-#           az0 = tempaz0+180.0               # X < 0; Y <= 0;   AZ = tempaz0+180
-#    el0 = np.arcsin(z/R)*180/np.pi
-#    return az0,el0
+def dp_tracking():
 
+    ## This part is under construction.
+
+    print('Star tracking.')

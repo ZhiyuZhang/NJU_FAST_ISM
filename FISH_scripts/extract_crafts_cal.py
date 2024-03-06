@@ -81,7 +81,6 @@ def extract_crafts_cal(filename):
         
         data = np.concatenate((auto,cross),axis=2)
         
-        
     else:
         data  = data0.reshape(Nsub,-1,Nbin,p,n).mean(axis=1, dtype=np.float32)
         

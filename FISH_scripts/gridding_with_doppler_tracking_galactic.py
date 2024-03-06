@@ -22,7 +22,7 @@ def interp(x,y,xnew,kind='linear',axis=0,smooth=0,smoothmode='nearest'):
     ynew = interp_func(xnew)
     return ynew
 
-def gridding_with_doppler_tracking(speclist,center,imsize=[100,100],cell=1/60,rest_freq=1.420405751768,vmin=-700,vmax=700,dv=0.1,frame='lsrk',p=[0],doppler_tracking=True,outname='image.fits',psrflag=False,overwrite=False):
+def gridding_with_doppler_tracking_galactic(speclist,center,imsize=[100,100],cell=1/60,rest_freq=1.420405751768,vmin=-700,vmax=700,dv=0.1,frame='lsrk',p=[0],doppler_tracking=True,outname='image.fits',psrflag=False,overwrite=False):
 
     c = 299792458.0/1e3 # km/s
 
@@ -30,8 +30,8 @@ def gridding_with_doppler_tracking(speclist,center,imsize=[100,100],cell=1/60,re
      'NAXIS':  2,
      'NAXIS1': imsize[0],
      'NAXIS2': imsize[1],
-     'CTYPE1': 'RA---SIN',
-     'CTYPE2': 'DEC--SIN',
+     'CTYPE1': 'GLON-CAR',
+     'CTYPE2': 'GLAT-CAR',
      'CUNIT1': 'deg',
      'CUNIT2': 'deg',
      'CDELT1': -cell,
@@ -130,8 +130,11 @@ def gridding_with_doppler_tracking(speclist,center,imsize=[100,100],cell=1/60,re
                     spec_freq_frame = sc_frame.value
                     
                     data_to_regrid = interp(spec_freq_frame,spec_data,faxis,axis=1,kind='linear')
-                    
-                gridder.grid(spec_ra, spec_dec, data_to_regrid)
+                
+                coord = SkyCoord(spec_ra, spec_dec, frame="icrs", unit="deg")                    
+                spec_l = coord.galactic.l.deg
+                spec_b = coord.galactic.b.deg
+                gridder.grid(spec_l, spec_b, data_to_regrid)
                 
             else:
                 print('No Doppler Tracking! Using the raw channel width.')

@@ -9,18 +9,10 @@ import astropy.units as u
 from astropy.time import Time
 from astropy.coordinates import EarthLocation,SkyCoord,SpectralCoord
 from astropy.utils import iers
-from scipy.interpolate import interp1d
-from scipy import ndimage
+from FISH_utils import interp
 
 #iers.conf.auto_download = False  
 iers.conf.auto_max_age = None  
-
-def interp(x,y,xnew,kind='linear',axis=0,smooth=0,smoothmode='nearest'):
-    if smooth != 0:
-        y = ndimage.uniform_filter1d(y,smooth,axis=axis,mode=smoothmode)
-    interp_func = interp1d(x=x,y=y,kind=kind,axis=axis,fill_value='extrapolate')
-    ynew = interp_func(xnew)
-    return ynew
 
 def gridding_with_doppler_tracking(speclist,center,imsize=[100,100],cell=1/60,rest_freq=1.420405751768,vmin=-700,vmax=700,dv=0.1,frame='lsrk',p=[0],doppler_tracking=True,outname='image.fits',psrflag=False,overwrite=False):
 

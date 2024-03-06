@@ -36,7 +36,7 @@ def applycal(specfits,tsysfits,restfreq=1.420405751768,plot=False):
     df       = cal_hdu1.header['CHAN_BW']  # channel width
     cal_freq = np.arange(fmin,fmax,df)/1e3 # frequency array (GHz)
     
-    tpsr_interp = interp(cal_mjd,tpsr,spec_mjd,kind='linear',axis=0)
+    tpsr_interp = interp(cal_mjd,tpsr,spec_mjd,kind='linear',axis=0,smooth=300)
     freq_range  = np.array([-700,700])/3e5*restfreq+restfreq  # -700 km/s to 700 km/s; 
                                                               # ignore this freq_range in matching
     spec_median = np.nanmedian(spec_data[:,(spec_freq<freq_range[0]) | (spec_freq>freq_range[1]),:],axis=1)

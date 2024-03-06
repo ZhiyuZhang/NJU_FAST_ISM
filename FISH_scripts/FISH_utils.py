@@ -9,7 +9,6 @@ def interp(x,y,xnew,kind='linear',axis=0,smooth=0,smoothmode='nearest'):
     ynew = interp_func(xnew)
     return ynew
 
-
 def rebin(array,rebin_n=2):
 
     if rebin_n<=1:

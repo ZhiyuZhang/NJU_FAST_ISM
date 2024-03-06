@@ -9,13 +9,7 @@ from astropy.io import fits
 from astropy.time import Time as ATime
 from scipy.interpolate import interp1d
 from scipy import ndimage
-
-def interp(x,y,xnew,kind='linear',axis=0,smooth=0,smoothmode='nearest'):
-    if smooth != 0:
-        y = ndimage.uniform_filter1d(y,smooth,axis=axis,mode=smoothmode)
-    interp_func = interp1d(x=x,y=y,kind=kind,axis=axis,fill_value='extrapolate')
-    ynew = interp_func(xnew)
-    return ynew
+from FISH_utils import interp
 
 def applycal(specfits,tsysfits,restfreq=1.420405751768,plot=False):
 

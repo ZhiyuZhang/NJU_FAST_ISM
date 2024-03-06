@@ -9,30 +9,7 @@ from astropy.io import fits
 from astropy.time import Time as ATime
 from scipy.interpolate import interp1d
 from scipy import ndimage
-
-def interp(x,y,xnew,kind='linear',axis=0,smooth=0,smoothmode='nearest'):
-    if smooth != 0:
-        y = ndimage.uniform_filter1d(y,smooth,axis=axis,mode=smoothmode)
-    interp_func = interp1d(x=x,y=y,kind=kind,axis=axis,fill_value='extrapolate')
-    ynew = interp_func(xnew)
-    return ynew
-
-def timebin(onoff,cal_mjd,n):
-    onoff_rebin   = []
-    cal_mjd_rebin = []
-    nsubint = len(cal_mjd)
-    nbin    = nsubint//n
-    for i in range(nbin):
-        #print(i*n,i*n+n)
-        onoff_rebin.append(np.nanmedian(onoff[i*n:i*n+n],axis=0))
-        cal_mjd_rebin.append(np.nanmedian(cal_mjd[i*n:i*n+n]))
-        # maybe it doesn't matter whether we choose mean/median in time?
-    if nsubint%n != 0:
-        onoff_rebin.append(np.nanmedian(onoff[-(nsubint%n):],axis=0))
-        cal_mjd_rebin.append(np.nanmedian(cal_mjd[-(nsubint%n):]))
-    onoff_rebin   = np.array(onoff_rebin)
-    cal_mjd_rebin = np.array(cal_mjd_rebin)
-    return onoff_rebin,cal_mjd_rebin
+from FISH_utils import interp
 
 def gaincal(callist,outname='Tsys_psr',do_cal=True,Tcalfits='Tcal/20201014/CAL.20201014.low.W.fits',beam=1,sm_nf=16,sm_nt=300,plot=False):
     
@@ -84,7 +61,6 @@ def gaincal(callist,outname='Tsys_psr',do_cal=True,Tcalfits='Tcal/20201014/CAL.2
         noise_data_interp = interp(noise_freq , noise_data , cal_freq , kind = 'linear' , axis = 1 , smooth = sm_nf  , smoothmode = 'nearest') # smooth along frequency
 
         Tpsr              = noise_data_interp/onoff_interp*cal_off ### Tsys_psr
-        #onoff_rebin,cal_mjd_rebin=timebin(onoff,cal_mjd,n)
 
         TSYS_PSR = fits.Column(name='TSYS_PSR', format="%dE" % (p*nf), array=Tpsr,dim=str((nf, p)))
         TIME     = fits.Column(name='MJD', format="D", array=cal_mjd)

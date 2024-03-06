@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
 import sys
 import xlrd
 import re
@@ -13,14 +8,11 @@ from astropy.table import Table
 from astropy.io import fits
 import ephem
 import time
+
 tablename=sys.argv[1]
 dir_name=sys.argv[2]
 
 xyztable = xlrd.open_workbook(tablename)
-
-
-# In[2]:
-
 
 #compute center ra dec from x,y,z
 
@@ -78,7 +70,6 @@ ra,dec=xyztoradec([0.008134610019624,-29.6900997161865,-159.009002685547],161207
 ra,dec
 
 
-# In[3]:
 
 
 #generate position calibration table
@@ -89,8 +80,6 @@ for i in range(table.nrows-1):
     result_table_210203[i,1:3]=xyztoradec(table.row_values(i+1)[7:10],result_table_210203[i,0])
     result_table_210203[i,3]=table.cell_value(i+1,18)
 
-
-# In[4]:
 
 
 files=os.listdir(dir_name)
@@ -107,8 +96,6 @@ for i in range(len(files)):
         if re.search('_N_',files[i])!=None:
             narrow_fits.append(files[i])
 
-
-# In[5]:
 
 
 for fitsfile in narrow_fits:

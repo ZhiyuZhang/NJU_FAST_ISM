@@ -17,8 +17,15 @@ iers.conf.auto_max_age = None
 def xyz2celestial(specfits,xyztable,beam=1,plot=False,psrflag=False):
 
     if not psrflag:
+
         spec_hdu0,spec_hdu1 = read_crafts_spec(specfits)
+
         spec_mjd  = spec_hdu1.data['utobs']
+        spec_fmin = spec_hdu1.data['freq'][0]
+        spec_chw  = spec_hdu1.data['chan_bw'][0]
+        spec_nch  = spec_hdu1.data['nchan'][0]
+        spec_fmax = spec_fmin+spec_nch*spec_chw
+        spec_freq = np.arange(spec_fmin,spec_fmax,spec_chw)/1e3 # freq in topo
     else:
         spec_hdu0,spec_hdu1,spec_hdu2 = read_crafts_cal(specfits)
         spec_mjd = spec_hdu2.data['MJD']
@@ -85,4 +92,7 @@ def xyz2celestial(specfits,xyztable,beam=1,plot=False,psrflag=False):
         plt.close()
 
 def dp_tracking():
+
+    ## This part is under construction.
+
     print('Star tracking.')

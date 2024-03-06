@@ -1,5 +1,8 @@
-## Extract the CAL_ON, CAL_OFF from the PSR data
-## Lastest version: Mar 28, 2022
+########## FAST InterStellar HI (FISH) pipeline ##########
+########## Contact: lingruiphd@smail.nju.edu.cn (Lingrui Lin) ##########
+## Extract CAL_ON and CAL_OFF from the PSR data
+## Version: Mar 28, 2022
+## Version: Feb 16, 2023
 
 import numpy as np
 from astropy.io import fits
@@ -12,6 +15,8 @@ def extract_crafts_cal(filename):
     
     print('Extracting CAL from '+filename)
     
+    ### Reading the PSR data
+    ### For the CRAFTS data, there should be 2 HDUs in each file.
     hdulist = fits.open(filename)
     hdu0    = hdulist[0]
     hdu1    = hdulist[1]
@@ -23,7 +28,8 @@ def extract_crafts_cal(filename):
     #nbits         = hdu0.header['BITPIX']
     #nf            = obsnchan
     #df            = hdu1.header['CHAN_BW']          # channel width
-    tsamp         = hdu1.header['TBIN']             # sampling time
+    
+    tsamp         = hdu1.header['TBIN']             # sampling time, 98 us
     nsubint       = hdu1.header['NAXIS2']           # number of subintegrations
     samppersubint = int(hdu1.header['NSBLK'])       # sampling numbers per subint
     nsamp         = nsubint * samppersubint         # total samplings
@@ -33,14 +39,18 @@ def extract_crafts_cal(filename):
 
     Nbin          = 2                          # number of bins to average along subint
     Tconst        = Nbin * Tsubint             # (28672+20480)/2*4*1024*2*1e-9 s
+                                               # It's the new duration of a subint after binning
     samppersubint = int(Tconst / tsamp)        # new sampling number per subint
     Nsub          = int(nsamp / samppersubint) # new subint number
     Tsubint       = Tconst                     # new tsubint
     
+    if (nsamp/samppersubint)%2!=0: ## some data have odd number of subints
+        Nsub = int(Nsub+1)
+    
     obsmjd = int(hdu0.header['STT_IMJD'])     # START INT MJD (UTC days)
     tstart = float(hdu0.header['STT_SMJD']) \
             + float(hdu0.header['STT_OFFS'])  # START time + START time offset (s)
-    mjd    = obsmjd + tstart/86400            # FLOAT MJD at the start of the observation
+    mjd    = obsmjd + tstart/86400            # FLOAT MJD (UTC days) at the start of the observation
     
     obsdate = ATime(obsmjd, format='mjd').datetime
     obstime = timedelta( seconds = float(tstart) )
@@ -52,13 +62,30 @@ def extract_crafts_cal(filename):
     #header['obsutc']   = obsutc
     
     data0     = np.copy(hdu1.data['data'][:,:,:,:,:])
-    _,_,p,n,_ = data0.shape
     
-    data  = data0.reshape(Nsub,-1,Nbin,p,n).mean(axis=1, dtype=np.float32) # Caveat: data type of AB and BA?
-                                                                          # group the 128 subintegrations two-by-two;
-                                                                          # group the 2*1024 sampling two-by-two;
-                                                                          # average in each subintegration group
-    Tarray = mjd + (np.arange(Nsub) + 0.5) * Tconst / 86400 # center time (float day) of each subint
+    if (nsamp/samppersubint)%2!=0: ## some data have odd number of subints
+        data0 = np.concatenate((data0,[data0[-1]]),axis=0)
+       
+    _,_,p,n,_ = data0.shape
+    # Caveat: data type of AB and BA?
+    # group the 128 subintegrations two-by-two;
+    # group the 2*1024 sampling two-by-two;
+    # average in each subintegration group
+
+    if p > 2:
+        dataauto  = data0[:,:,:2,:,:]
+        datacross = data0[:,:,2:,:,:].astype(np.int8)
+
+        auto  = dataauto.reshape(Nsub,-1,Nbin,2,n).mean(axis=1, dtype=np.float32) # We must take the mean value and must not take the median value.
+        cross = datacross.reshape(Nsub,-1,Nbin,2,n).mean(axis=1, dtype=np.float32)
+        
+        data = np.concatenate((auto,cross),axis=2)
+        
+        
+    else:
+        data  = data0.reshape(Nsub,-1,Nbin,p,n).mean(axis=1, dtype=np.float32)
+        
+    Tarray = mjd + (np.arange(Nsub) + 0.5) * Tconst / 86400 # time (float day) at the center of each subint
     
     #delnames = ['DATA', 'DAT_OFFS', 'DAT_SCL', 'DAT_WTS', 'DAT_FREQ']
     #datadict = {}

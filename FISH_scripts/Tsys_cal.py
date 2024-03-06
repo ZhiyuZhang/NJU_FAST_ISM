@@ -34,7 +34,7 @@ def timebin(onoff,cal_mjd,n):
     cal_mjd_rebin = np.array(cal_mjd_rebin)
     return onoff_rebin,cal_mjd_rebin
 
-def gaincal(callist,outname='Tsys_psr',Tcalfits='Tcal/20201014/CAL.20201014.low.W.fits',beam=1,sm_nf=16,sm_nt=300,plot=False):
+def gaincal(callist,outname='Tsys_psr',do_cal=True,Tcalfits='Tcal/20201014/CAL.20201014.low.W.fits',beam=1,sm_nf=16,sm_nt=300,plot=False):
     
     callist = np.loadtxt(callist,dtype=str)
     
@@ -66,33 +66,37 @@ def gaincal(callist,outname='Tsys_psr',Tcalfits='Tcal/20201014/CAL.20201014.low.
     fmax     = float(obsfreq + obsbw/2.)             # maximum frequency
     nf       = obsnchan                              # channel number
     df       = hdu1.header['CHAN_BW']                # channel width
-    cal_freq = np.arange(fmin,fmax,df)/1e3           # frequency array
+    cal_freq = np.arange(fmin,fmax,df)/1e3           # frequency array; MHz to GHz
     p        = onoff.shape[1]                        # n_polarization
-
-    _,noisehdu1 = read_crafts_spec(Tcalfits)
-    noise_data  = np.transpose(noisehdu1.data['tcal'][0,beam-1,:,:],axes=(1,0))
-    print('There are {} polarizations in the Tcal noise.'.format(noise_data.shape[0]))
-    if noise_data.shape[0]<p: 
-    # add NaN array when the length of the polarization axis of the noise data is smaller than 4.
-        noise_data = np.concatenate((noise_data,np.nan*np.ones(shape=(p-noise_data.shape[0],noise_data.shape[1]))),axis=0)
-    noise_freq  = noisehdu1.data['freq'][0]/1e3 # unit: GHz
     
-    noise_data_interp = interp(noise_freq , noise_data , cal_freq , kind = 'linear' , axis = 1 , smooth = sm_nf  , smoothmode = 'nearest')
-    onoff_interp      = interp(cal_mjd    , onoff      , cal_mjd  , kind = 'linear' , axis = 0 , smooth = sm_nt , smoothmode = 'nearest')
-    Tpsr              = noise_data_interp/onoff_interp*cal_off
-    #onoff_rebin,cal_mjd_rebin=timebin(onoff,cal_mjd,n)
+    onoff_interp      = interp(cal_mjd    , onoff      , cal_mjd  , kind = 'linear' , axis = 0 , smooth = sm_nt , smoothmode = 'nearest') # smooth along mjd
     
-    TSYS_PSR = fits.Column(name='TSYS_PSR', format="%dE" % (p*nf), array=Tpsr,dim=str((nf, p)))
-    TIME     = fits.Column(name='MJD', format="D", array=cal_mjd)
-    cols     = fits.ColDefs([TSYS_PSR,TIME])
-    tsystab  = fits.BinTableHDU.from_columns(cols)
-    hduout   = fits.HDUList([hdu0,hdu1,tsystab])
+    if do_cal:
+        
+        _,noisehdu1 = read_crafts_spec(Tcalfits)
+        noise_data  = np.transpose(noisehdu1.data['tcal'][0,beam-1,:,:],axes=(1,0))
+        print('There are {} polarizations in the Tcal noise.'.format(noise_data.shape[0]))
+        if noise_data.shape[0]<p: 
+        # add NaN array when the length of the polarization axis of the noise data is smaller than 4.
+            noise_data = np.concatenate((noise_data,np.nan*np.ones(shape=(p-noise_data.shape[0],noise_data.shape[1]))),axis=0)
+        noise_freq  = noisehdu1.data['freq'][0]/1e3 # MHz to GHz
 
-    cal_date = ATime(cal_mjd,format='mjd').datetime
-    newname = outname + '-M{}'.format(str(beam).rjust(2,'0')) + '_' + cal_date[0].strftime("%y%m%d") + "_" + cal_date[0].strftime("%H%M%S") + 'to' \
-              + cal_date[-1].strftime("%y%m%d") + "_" + cal_date[-1].strftime("%H%M%S")
-    hduout.writeto(newname+'.fits', overwrite=True)
-    hduout.close()
+        noise_data_interp = interp(noise_freq , noise_data , cal_freq , kind = 'linear' , axis = 1 , smooth = sm_nf  , smoothmode = 'nearest') # smooth along frequency
+
+        Tpsr              = noise_data_interp/onoff_interp*cal_off ### Tsys_psr
+        #onoff_rebin,cal_mjd_rebin=timebin(onoff,cal_mjd,n)
+
+        TSYS_PSR = fits.Column(name='TSYS_PSR', format="%dE" % (p*nf), array=Tpsr,dim=str((nf, p)))
+        TIME     = fits.Column(name='MJD', format="D", array=cal_mjd)
+        cols     = fits.ColDefs([TSYS_PSR,TIME])
+        tsystab  = fits.BinTableHDU.from_columns(cols)
+        hduout   = fits.HDUList([hdu0,hdu1,tsystab])
+
+        cal_date = ATime(cal_mjd,format='mjd').datetime
+        newname = outname + '-M{}'.format(str(beam).rjust(2,'0')) + '_' + cal_date[0].strftime("%y%m%d") + "_" + cal_date[0].strftime("%H%M%S") + 'to' \
+                  + cal_date[-1].strftime("%y%m%d") + "_" + cal_date[-1].strftime("%H%M%S")
+        hduout.writeto(newname+'.fits', overwrite=True)
+        hduout.close()
 
     # ------------------------- plot on-off and resampled noise spectra
     if plot:
@@ -122,47 +126,50 @@ def gaincal(callist,outname='Tsys_psr',Tcalfits='Tcal/20201014/CAL.20201014.low.
             plt.savefig('onoff2D_p{}.pdf'.format(i),format='pdf',bbox_inches='tight')
             plt.close()
 
-        fig  = plt.figure()
-        gs   = fig.add_gridspec(nrows=2,ncols=1,hspace=0,height_ratios=np.array([1,1]))
-        ax00 = fig.add_subplot(gs[0,0])
-        ax10 = fig.add_subplot(gs[1,0],sharex=ax00)
-        ax00.step(noise_freq,noise_data[0],where='mid',label='AA')
-        ax00.step(cal_freq,noise_data_interp[0],linestyle='--',where='mid',label='AA resampled')
-        ax10.step(noise_freq,noise_data[1],where='mid',label='BB')
-        ax10.step(cal_freq,noise_data_interp[1],linestyle='--',where='mid',label='BB resampled')
-        ax00.set_ylim(1.0,1.3)
-        ax10.set_ylim(1.0,1.3)
-        #ax00.set_xlim(1.40,1.44)
-        ax00.legend()
-        ax10.legend()
-        ax10.set_xlabel('FREQ [GHz]')
-        ax10.set_ylabel('T_CAL [K]')
-        plt.savefig('Tcal_resample.pdf',format='pdf',bbox_inches='tight')
-        plt.close()
 
-        for i in range(2):
-            T    = Tpsr[:,i,:]
+        if do_cal:
+            
             fig  = plt.figure()
-            gs   = fig.add_gridspec(nrows=2,ncols=2,hspace=0,wspace=0,height_ratios=np.array([2,1]),width_ratios=np.array([2,1]))
+            gs   = fig.add_gridspec(nrows=2,ncols=1,hspace=0,height_ratios=np.array([1,1]))
             ax00 = fig.add_subplot(gs[0,0])
-            ax01 = fig.add_subplot(gs[0,1],sharey=ax00)
             ax10 = fig.add_subplot(gs[1,0],sharex=ax00)
-            Tmap = ax00.imshow(T,cmap='jet',aspect='auto',vmin=25,vmax=50)
-            ax10.step(np.arange(0,nf),np.nanmedian(T,axis=0),where='mid')
-            ax01.step(np.nanmedian(T,axis=1),np.arange(0,nsubint),where='mid')
-            ax00.tick_params(labelbottom=False)
-            ax01.tick_params(labelleft=False)
-            ax00.set_ylabel('Subintegration')
-            ax01.set_xlabel('Tpsr')
-            ax10.set_xlabel('Channel')#,fontweight='bold')
-            ax10.set_ylabel('Tpsr')
-            ax10.set_ylim(23,40)
-            cax = fig.add_axes([ax00.get_position().x0,ax00.get_position().y1,ax00.get_position().width,0.02])
-            cb  = fig.colorbar(mappable=Tmap,cax=cax,pad=0,orientation='horizontal')
-            cb.ax.tick_params(labelsize=15,direction='in',labeltop=True,labelbottom=False)
-            cax.set_title(r'$T_{\rm A}$ [K]',fontsize=15)
-            plt.savefig('Tpsr2D_p{}.pdf'.format(i),format='pdf',bbox_inches='tight')
+            ax00.step(noise_freq,noise_data[0],where='mid',label='AA')
+            ax00.step(cal_freq,noise_data_interp[0],linestyle='--',where='mid',label='AA resampled')
+            ax10.step(noise_freq,noise_data[1],where='mid',label='BB')
+            ax10.step(cal_freq,noise_data_interp[1],linestyle='--',where='mid',label='BB resampled')
+            ax00.set_ylim(1.0,1.3)
+            ax10.set_ylim(1.0,1.3)
+            #ax00.set_xlim(1.40,1.44)
+            ax00.legend()
+            ax10.legend()
+            ax10.set_xlabel('FREQ [GHz]')
+            ax10.set_ylabel('T_CAL [K]')
+            plt.savefig('Tcal_resample.pdf',format='pdf',bbox_inches='tight')
             plt.close()
+
+            for i in range(2):
+                T    = Tpsr[:,i,:]
+                fig  = plt.figure()
+                gs   = fig.add_gridspec(nrows=2,ncols=2,hspace=0,wspace=0,height_ratios=np.array([2,1]),width_ratios=np.array([2,1]))
+                ax00 = fig.add_subplot(gs[0,0])
+                ax01 = fig.add_subplot(gs[0,1],sharey=ax00)
+                ax10 = fig.add_subplot(gs[1,0],sharex=ax00)
+                Tmap = ax00.imshow(T,cmap='jet',aspect='auto',vmin=25,vmax=50)
+                ax10.step(np.arange(0,nf),np.nanmedian(T,axis=0),where='mid')
+                ax01.step(np.nanmedian(T,axis=1),np.arange(0,nsubint),where='mid')
+                ax00.tick_params(labelbottom=False)
+                ax01.tick_params(labelleft=False)
+                ax00.set_ylabel('Subintegration')
+                ax01.set_xlabel('Tpsr')
+                ax10.set_xlabel('Channel')#,fontweight='bold')
+                ax10.set_ylabel('Tpsr')
+                ax10.set_ylim(23,40)
+                cax = fig.add_axes([ax00.get_position().x0,ax00.get_position().y1,ax00.get_position().width,0.02])
+                cb  = fig.colorbar(mappable=Tmap,cax=cax,pad=0,orientation='horizontal')
+                cb.ax.tick_params(labelsize=15,direction='in',labeltop=True,labelbottom=False)
+                cax.set_title(r'$T_{\rm A}$ [K]',fontsize=15)
+                plt.savefig('Tpsr2D_p{}.pdf'.format(i),format='pdf',bbox_inches='tight')
+                plt.close()
 
     return  
 

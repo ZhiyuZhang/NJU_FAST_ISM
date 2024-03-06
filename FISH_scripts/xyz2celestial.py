@@ -6,18 +6,26 @@ from astropy.io import fits
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy.time import Time
 from read_crafts_spec import read_crafts_spec
+from read_crafts_cal import read_crafts_cal
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from astropy.utils import iers
+#iers.conf.auto_download = False  
+iers.conf.auto_max_age = None  
 
 def interp(x,y,xnew,kind='linear',axis=0):
     interp_func = interp1d(x=x,y=y,kind=kind,axis=axis,fill_value='extrapolate')
     ynew = interp_func(xnew)
     return ynew
 
-def xyz2celestial(specfits,xyztable,beam=1,plot=False):
+def xyz2celestial(specfits,xyztable,beam=1,plot=False,psrflag=False):
 
-    spec_hdu0,spec_hdu1 = read_crafts_spec(specfits)
-    spec_mjd  = spec_hdu1.data['utobs']
+    if not psrflag:
+        spec_hdu0,spec_hdu1 = read_crafts_spec(specfits)
+        spec_mjd  = spec_hdu1.data['utobs']
+    else:
+        spec_hdu0,spec_hdu1,spec_hdu2 = read_crafts_cal(specfits)
+        spec_mjd = spec_hdu2.data['MJD']
     
     #FAST = EarthLocation(lon=106.85645657571428*u.deg,lat=25.6534387*u.deg,height=1138.72178*u.m)
     FAST = EarthLocation(x=-1668557.9202*u.m,y=5506865.964*u.m,z=2744946.0867*u.m)
@@ -28,6 +36,7 @@ def xyz2celestial(specfits,xyztable,beam=1,plot=False):
     range      = (cabin_mjd>=spec_mjd[0]) & (cabin_mjd<=spec_mjd[-1])
     cabin_mjd  = cabin_mjd[range]
     
+    ## East-North-Sky System
     SDP_E = xyztable['SDP_PhaPos_X'].values[range]
     SDP_N = xyztable['SDP_PhaPos_Y'].values[range]
     SDP_S = xyztable['SDP_PhaPos_Z'].values[range]
@@ -51,10 +60,22 @@ def xyz2celestial(specfits,xyztable,beam=1,plot=False):
     rot     = np.array([[np.cos(SDP_angle),-np.sin(SDP_angle)],[np.sin(SDP_angle),np.cos(SDP_angle)]])
     pos_rot = np.dot(rot,pos)
 
-    spec_hdu1.data['OBJ_RA']  = coord.icrs.ra.value + pos_rot[0]/np.cos(coord.icrs.dec.value*u.deg)/60
-    spec_hdu1.data['OBJ_DEC'] = coord.icrs.dec.value + pos_rot[1]/60
+    obj_ra  = coord.icrs.ra.value + pos_rot[0]/np.cos(coord.icrs.dec.value*u.deg)/60
+    obj_dec = coord.icrs.dec.value + pos_rot[1]/60
     
-    hduout = fits.HDUList([spec_hdu0,spec_hdu1])
+    n = len(obj_ra)
+    
+    if not psrflag:
+        spec_hdu1.data['OBJ_RA']  = obj_ra
+        spec_hdu1.data['OBJ_DEC'] = obj_dec
+        hduout = fits.HDUList([spec_hdu0,spec_hdu1])
+    else:
+        col_ra  = fits.Column(name='OBJ_RA',format="1D", array=obj_ra)
+        col_dec = fits.Column(name='OBJ_DEC',format="1D", array=obj_dec)
+        spec_hdu2.columns.add_col(col_ra)
+        spec_hdu2.columns.add_col(col_dec)
+        hduout = fits.HDUList([spec_hdu0,spec_hdu1,spec_hdu2])
+    
     rootname  = specfits[:-5]
     hduout.writeto(rootname+'_icrs.fits', overwrite=True)
     hduout.close()
